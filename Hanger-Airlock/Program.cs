@@ -133,29 +133,30 @@ namespace IngameScript
                         }
                     }
                 }
-
-                if (outerDoorsCloseDelay > 0 && outerDoorOpened && airlockState == AirlockState.OuterDoorOpening)
-                {
-                    outerDoorsCloseDelay--;
-                }
-                else if (outerDoorsCloseDelay == 0 && outerDoorOpened)
-                {
-                    airlockState = AirlockState.OuterDoorClosing;
-                    foreach (var door in outerDoors)
-                    {
-                        door.CloseDoor();
-                    }
-                    outerDoorsClosing = true;
-                    outerDoorsCloseDelay = 50;
-                    outerDoorsOpenDelay = 60;
-                    airlockState = AirlockState.Ready;
-                }
-
-
-
-
-
             }
+
+            if (outerDoorsCloseDelay > 0 && outerDoorOpened && airlockState == AirlockState.OuterDoorOpening)
+            {
+                outerDoorsCloseDelay--;
+            }
+            else if (outerDoorsCloseDelay == 0 && outerDoorOpened)
+            {
+                airlockState = AirlockState.OuterDoorClosing;
+                foreach (var door in outerDoors)
+                {
+                    door.CloseDoor();
+                }
+                outerDoorsClosing = true;
+                outerDoorsCloseDelay = 50;
+                outerDoorsOpenDelay = 60;
+                airlockState = AirlockState.Ready;
+            }
+
+
+
+
+
+
 
         }
 
