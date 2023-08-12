@@ -31,12 +31,16 @@ namespace IngameScript
 
         bool innerDoorsClosing = false;
         bool outerDoorsClosing = false;
-        int innerDoorsCloseDelay = 25;
-        int outerDoorsCloseDelay = 25;
+        bool innerDoorsClosed = true;
+        bool outerDoorsClosed = false;
+        int innerDoorsCloseDelay = 50;
+        int outerDoorsCloseDelay = 50;
+        int outerDoorsOpenDuration = 5 * 60; // in seconds
+        private int outerDoorsOpenDelay = 50;
 
         public Program()
         {
-            Runtime.UpdateFrequency = UpdateFrequency.Update1;
+            Runtime.UpdateFrequency = UpdateFrequency.Update10;
             innerDoors = new List<IMyDoor>();
             outerDoors = new List<IMyDoor>();
 
@@ -56,77 +60,62 @@ namespace IngameScript
         public void Main(string argument, UpdateType updateSource)
         {
 
+
             bool innerDoorOpened = innerDoors.Any(door => door.Status == DoorStatus.Open);
             bool outerDoorOpened = outerDoors.Any(door => door.Status == DoorStatus.Open);
 
-            if (!innerDoorOpened && !outerDoorOpened && lastDoorOpened == null)
+            if (!innerDoorOpened && !outerDoorOpened)
             {
+                Me.GetSurface(0).WriteText("Airlock Ready");
                 foreach (var door in innerDoors)
                     door.Enabled = true;
 
                 foreach (var door in outerDoors)
                     door.Enabled = true;
+                innerDoorsClosed = true;
+                outerDoorsClosed = true;
             }
-            else if (innerDoorOpened && lastDoorOpened == null)
-            {
-                foreach (var door in outerDoors)
-                    door.Enabled = false;
 
-                lastDoorOpened = innerDoors.First(door => door.Status == DoorStatus.Open);
-                innerDoorsClosing = true;
-                innerDoorsCloseDelay = 25;
-            }
-            else if (outerDoorOpened && lastDoorOpened == null)
+            if (outerDoorsClosed)
             {
-                foreach (var door in innerDoors)
-                    door.Enabled = false;
-
-                lastDoorOpened = outerDoors.First(door => door.Status == DoorStatus.Open);
-                outerDoorsClosing = true;
-                outerDoorsCloseDelay = 25;
-            }
-            else if (innerDoorsClosing && innerDoorsCloseDelay-- == 0)
-            {
-                innerDoorsClosing = false;
-                foreach (var door in innerDoors)
-                    door.CloseDoor();
-
-                airVent.Depressurize = true;
-            }
-            else if (outerDoorsClosing && outerDoorsCloseDelay-- == 0)
-            {
-                outerDoorsClosing = false;
-                foreach (var door in outerDoors)
-                    door.CloseDoor();
-
-                airVent.Depressurize = true;
-            }
-            else if (!innerDoorOpened && lastDoorOpened != null)
-            {
-                if (lastDoorOpened == outerDoors.First())
+                while (innerDoors.Any(door => door.Status == DoorStatus.Open))
                 {
-                    lastDoorOpened = null;
-                }
-                else if (airVent.GetOxygenLevel() < 0.1f)
-                {
-                    foreach (var door in outerDoors)
-                        door.Enabled = true;
-                }
-            }
-            else if (!outerDoorOpened && lastDoorOpened != null)
-            {
-                if (lastDoorOpened == innerDoors.First())
-                {
-                    lastDoorOpened = null;
-                }
-                else if (airVent.GetOxygenLevel() > 0.75f)
-                {
-                    foreach (var door in innerDoors)
-                        door.Enabled = true;
+                    if (innerDoorsCloseDelay > 0)
+                    {
+                        innerDoorsCloseDelay--;
+                    }
+                    else
+                    {
+                        foreach (var door in innerDoors)
+                        {
+                            door.CloseDoor();
+                        }
+                        innerDoorsClosing = true;
+                        innerDoorsCloseDelay = 50;
+                        OpenOuterDoors();
+                    }
                 }
             }
 
         }
+
+        public void OpenOuterDoors()
+        {
+            if (outerDoorsOpenDelay > 0)
+            {
+                outerDoorsOpenDelay--;
+            }
+            else if (outerDoorsOpenDelay == 0)
+            {
+                foreach (var door in outerDoors)
+                {
+                    door.OpenDoor();
+                }
+                outerDoorsClosing = true;
+                outerDoorsOpenDelay = 50;
+            }
+        }
+
 
     }
 }
