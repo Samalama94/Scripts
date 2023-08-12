@@ -27,16 +27,16 @@ namespace IngameScript
         List<IMyDoor> outerDoors;
         IMyAirVent airVent;
 
-        private IMyDoor lastDoorOpened;
 
         bool innerDoorsClosing = false;
         bool outerDoorsClosing = false;
-        bool innerDoorsClosed = true;
-        bool outerDoorsClosed = false;
+      
         int innerDoorsCloseDelay = 50;
         int outerDoorsCloseDelay = 50;
         int outerDoorsOpenDuration = 5 * 60; // in seconds
-        private int outerDoorsOpenDelay = 50;
+        private int outerDoorsOpenDelay = 60;
+        
+        private string lastDoorOpened;
 
         public Program()
         {
@@ -72,49 +72,71 @@ namespace IngameScript
 
                 foreach (var door in outerDoors)
                     door.Enabled = true;
-                innerDoorsClosed = true;
-                outerDoorsClosed = true;
+
+                innerDoorsClosing = false;
+                outerDoorsClosing = false;
+                
             }
 
-            if (outerDoorsClosed)
+            if (innerDoorOpened && !outerDoorOpened)
             {
-                while (innerDoors.Any(door => door.Status == DoorStatus.Open))
+                lastDoorOpened = "Inner";
+                if (innerDoorsCloseDelay > 0)
                 {
-                    if (innerDoorsCloseDelay > 0)
+                    innerDoorsCloseDelay--;
+                }
+                else
+                {
+                    foreach (var door in innerDoors)
                     {
-                        innerDoorsCloseDelay--;
+                        door.CloseDoor();
+                    }
+                    innerDoorsClosing = true;
+                    innerDoorsCloseDelay = 50;
+                    int i = 0;
+
+                    
+                }
+            }
+
+            if (lastDoorOpened == "Inner" && innerDoorsClosing == false  && !innerDoorOpened)
+            {
+                if (outerDoorsOpenDelay > 0)
+                {
+                    outerDoorsOpenDelay--;
+                }
+                else
+                {
+                    foreach (var door in outerDoors)
+                    {
+                        
+                        door.OpenDoor();
+                    }
+
+                    if (outerDoorsCloseDelay > 0 && outerDoorsOpenDelay == 0)
+                    {
+                        outerDoorsCloseDelay--;
                     }
                     else
                     {
-                        foreach (var door in innerDoors)
+                        foreach (var door in outerDoors)
                         {
                             door.CloseDoor();
                         }
-                        innerDoorsClosing = true;
-                        innerDoorsCloseDelay = 50;
-                        OpenOuterDoors();
+                        outerDoorsClosing = true;
+                        outerDoorsCloseDelay = 50;
+                        outerDoorsOpenDelay = 60;
+                        lastDoorOpened = "";
                     }
+
+
                 }
+
+
             }
 
         }
 
-        public void OpenOuterDoors()
-        {
-            if (outerDoorsOpenDelay > 0)
-            {
-                outerDoorsOpenDelay--;
-            }
-            else if (outerDoorsOpenDelay == 0)
-            {
-                foreach (var door in outerDoors)
-                {
-                    door.OpenDoor();
-                }
-                outerDoorsClosing = true;
-                outerDoorsOpenDelay = 50;
-            }
-        }
 
 
     }
