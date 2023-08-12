@@ -10,8 +10,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Misc Scripts", "Misc Script
 		Misc\AltWarning.cs = Misc\AltWarning.cs
 		Misc\AnyScreenWriter.cs = Misc\AnyScreenWriter.cs
 		Class2.cs = Class2.cs
-		Misc\Follower.cs = Misc\Follower.cs
 		Dock SIgn.cs = Dock SIgn.cs
+		Misc\Follower.cs = Misc\Follower.cs
 		Misc\Hi Senpai.cs = Misc\Hi Senpai.cs
 		Misc\Hydrogen Tank Level Display.cs = Misc\Hydrogen Tank Level Display.cs
 		Misc\Increment Test.cs = Misc\Increment Test.cs
@@ -43,6 +43,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Test", "Test\Test.csproj", 
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dock To Cargo", "Ship Items to Station Cargo\Dock To Cargo.csproj", "{F5D1C7CE-0636-4497-BC0A-37921209E736}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hanger-Airlock", "Hanger-Airlock\Hanger-Airlock.csproj", "{5D1EE3F7-9261-467C-B85D-B130E1ECD1CE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -66,6 +68,8 @@ Global
 		{FB58F666-A53D-4AF6-A4CD-BF5DF0537BE4}.Debug|x64.Build.0 = Debug|x64
 		{F5D1C7CE-0636-4497-BC0A-37921209E736}.Debug|x64.ActiveCfg = Debug|x64
 		{F5D1C7CE-0636-4497-BC0A-37921209E736}.Debug|x64.Build.0 = Debug|x64
+		{5D1EE3F7-9261-467C-B85D-B130E1ECD1CE}.Debug|x64.ActiveCfg = Debug|x64
+		{5D1EE3F7-9261-467C-B85D-B130E1ECD1CE}.Debug|x64.Build.0 = Debug|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

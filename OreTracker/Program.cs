@@ -49,159 +49,137 @@ namespace IngameScript
 
         public Program()
         {
-            Runtime.UpdateFrequency = UpdateFrequency.Update100;
+            Runtime.UpdateFrequency = UpdateFrequency.Update10;
         }
 
         public void Save()
-        { }
+        {
+            // Called when the program needs to save its state. Use
+            // this method to save your state to the Storage field
+            // or some other means. 
+            // 
+            // This method is optional and can be removed if not
+            // needed.
+        }
 
         void Main()
         {
-            var items = new Dictionary<string, int>();
+            DisplayFuel();
+            DisplayOres();
+            DisplayCargoFillLevel();
 
-            List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>();
+        }
+        public void DisplayCargoFillLevel()
+        {
+            List<IMyTerminalBlock> cargoContainers = new List<IMyTerminalBlock>();
+            float fillAmount = 0;
 
-            GridTerminalSystem.GetBlocksOfType<IMyCargoContainer>(blocks);
+            GridTerminalSystem.GetBlocksOfType<IMyCargoContainer>(cargoContainers, c => c.CustomName.Contains("Cargo Container"));
 
-            foreach (var block in blocks)
+            foreach (var container in cargoContainers)
             {
-                IMyInventory inventory = (block as IMyCargoContainer)?.GetInventory(0);
+                var inventory = (container as IMyInventoryOwner).GetInventory(0);
 
-                if (inventory != null)
+                fillAmount += (float)inventory.CurrentVolume / (float)inventory.MaxVolume;
+            }
+
+            fillAmount /= cargoContainers.Count;
+
+            int numHashes = (int)(fillAmount * 10);
+            int numEquals = 10 - numHashes;
+
+            string invFillLevel = new string('#', numHashes) + new string('=', numEquals);
+
+
+            IMyCockpit oCockpit = GridTerminalSystem.GetBlockWithName("Sam's Old Miner") as IMyCockpit;
+            var screen = oCockpit.GetSurface(1);
+            if (screen != null)
+            {
+                screen.ContentType = ContentType.TEXT_AND_IMAGE;
+                screen.FontSize = 3f;
+                screen.WriteText($"Fill Level:\n{fillAmount:P}\n\n{invFillLevel}", false);
+            }
+        }
+
+        public void DisplayOres()
+        {
+            List<IMyTerminalBlock> cargoContainers = new List<IMyTerminalBlock>();
+            List<MyInventoryItem> inventoryItems = new List<MyInventoryItem>();
+
+            IMyCockpit oCockpit = GridTerminalSystem.GetBlockWithName("Sam's Old Miner") as IMyCockpit;
+            var screen = oCockpit.GetSurface(0);
+
+            if (screen == null)
+            {
+                Echo("Error, no cockpit screen found");
+                return;
+            }
+
+            GridTerminalSystem.GetBlocksOfType<IMyCargoContainer>(cargoContainers, c => c.CustomName.Contains("Cargo Container"));
+
+            foreach (var container in cargoContainers)
+            {
+                var inventory = (container as IMyInventoryOwner).GetInventory(0);
+                var items = new List<MyInventoryItem>();
+
+                inventory.GetItems(items, (i) => i.Type.TypeId == "MyObjectBuilder_Ore");
+
+                foreach (var item in items)
                 {
-                    List<MyInventoryItem> containerItems = new List<MyInventoryItem>();
+                    MyItemType itemType = item.Type;
 
-                    inventory.GetItems(containerItems);
-
-                    foreach (var item in containerItems)
-                    {
-                        string type = item.Type.TypeId;
-
-                        if (type.Contains("MyObjectBuilder_Ore") || type.Contains("MyObjectBuilder_Ingot") || type.Contains("MyObjectBuilder_OxygenContainerObject"))
-                        {
-                            string subtype = item.Type.SubtypeId;
-
-                            if (items.ContainsKey(subtype))
-                            {
-                                items[subtype] += (int)item.Amount;
-                            }
-                            else
-                            {
-                                items.Add(subtype, (int)item.Amount);
-                            }
-                        }
-                    }
+                    inventoryItems.Add(item);
                 }
             }
+
+
+            StringBuilder sb = new StringBuilder("Ores:\n");
+
+            foreach (var item in inventoryItems) { sb.AppendLine($" {Math.Round((double)item.Amount)} {item.Type.SubtypeId}"); }
+
+
+
+            screen.FontSize = 3f;
+            screen.WriteText(sb.ToString(), false);
             
-            IMyCockpit Cockpit = GridTerminalSystem.GetBlockWithName("[Flight 1]") as IMyCockpit;
-            var screen = Cockpit.GetSurface(1);
-            screen.FontSize = 0.7f;
-            var StringList = new List<string>();
-            StringList.AddRange(new[] { "ORES\n====\n\n" });
-            int count = 0;
-
-            foreach (var item in items)
-            {
-                if (count % 2 == 0)
-                {
-                    StringList.Add($"{item.Key}: {item.Value}, ");
-                }
-                else
-                {
-                    StringList[StringList.Count - 1] += $"{item.Key}: {item.Value}\n";
-                }
-
-                count++;
-            }
-
-            // If the last item was in an odd index, add its name only to the line
-            if (count % 2 != 0 && count > 1)
-            {
-                StringList[StringList.Count - 1] += "\n";
-            }
-
-            screen.WriteText(String.Join("", StringList));
         }
-
-        /* Version for an LCD panel
-         * public Program()
+        public void DisplayFuel()
         {
-            Runtime.UpdateFrequency = UpdateFrequency.Update100;
+            List<IMyGasTank> gasTanks = new List<IMyGasTank>();
+            GridTerminalSystem.GetBlocksOfType<IMyGasTank>(gasTanks, c => c.CustomName.Contains("Hydrogen Tank"));
+
+
+
+            double totalCapacity = 0;
+            double totalFillLevel = 0;
+            foreach (var tank in gasTanks)
+            {
+                double capacity = (double)tank.Capacity;
+                double tankFill = (double)tank.FilledRatio;
+                totalCapacity += capacity;
+                totalFillLevel += tankFill * capacity;
+            }
+
+
+            double fillAmount = totalFillLevel / totalCapacity;
+
+            int numHashes = (int)(fillAmount * 10);
+            int numEquals = 10 - numHashes;
+
+            string fillLevel = new string('#', numHashes) + new string('=', numEquals);
+
+
+            IMyCockpit oCockpit = GridTerminalSystem.GetBlockWithName("Sam's Old Miner") as IMyCockpit;
+            var screen = oCockpit.GetSurface(2);
+
+            if (screen != null)
+            {
+                screen.ContentType = ContentType.TEXT_AND_IMAGE;
+                screen.FontSize = 3f;
+                screen.WriteText($"Tank Level:\n{fillAmount:P}\n\n{fillLevel}", false);
+            }
         }
 
-        public void Save()
-        { }
 
-        void Main()
-        {
-            var items = new Dictionary<string, int>();
-
-            List<IMyTerminalBlock> blocks = new List<IMyTerminalBlock>();
-
-            GridTerminalSystem.GetBlocksOfType<IMyCargoContainer>(blocks);
-
-            foreach (var block in blocks)
-            {
-                IMyInventory inventory = (block as IMyCargoContainer)?.GetInventory(0);
-
-                if (inventory != null)
-                {
-                    List<MyInventoryItem> containerItems = new List<MyInventoryItem>();
-
-                    inventory.GetItems(containerItems);
-
-                    foreach (var item in containerItems)
-                    {
-                        string type = item.Type.TypeId;
-
-                        if (type.Contains("MyObjectBuilder_Ore") || type.Contains("MyObjectBuilder_Ingot") || type.Contains("MyObjectBuilder_OxygenContainerObject"))
-                        {
-                            string subtype = item.Type.SubtypeId;
-
-                            if (items.ContainsKey(subtype))
-                            {
-                                items[subtype] += (int)item.Amount;
-                            }
-                            else
-                            {
-                                items.Add(subtype, (int)item.Amount);
-                            }
-                        }
-                    }
-                }
-            }
-
-            //IMyCockpit Cockpit = GridTerminalSystem.GetBlockWithName("[Flight 1]") as IMyCockpit;
-            //var screen = Cockpit.GetSurface(1);
-            var screen = GridTerminalSystem.GetBlockWithName("DoDo") as IMyTextPanel;
-            screen.FontSize = 0.7f;
-            var StringList = new List<string>();
-            StringList.AddRange(new[] { "ORES\n====\n\n" });
-            int count = 0;
-
-            foreach (var item in items)
-            {
-                if (count % 2 == 0)
-                {
-                    StringList.Add($"{item.Key}: {item.Value}, ");
-                }
-                else
-                {
-                    StringList[StringList.Count - 1] += $"{item.Key}: {item.Value}\n";
-                }
-
-                count++;
-            }
-
-            // If the last item was in an odd index, add its name only to the line
-            if (count % 2 != 0 && count > 1)
-            {
-                StringList[StringList.Count - 1] += "\n";
-            }
-
-            screen.WriteText(String.Join("", StringList));
-        }
-        */
     }
 }

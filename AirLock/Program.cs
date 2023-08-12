@@ -22,34 +22,12 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        // This file contains your actual script.
-        //
-        // You can either keep all your code here, or you can create separate
-        // code files to make your program easier to navigate while coding.
-        //
-        // In order to add a new utility class, right-click on your project, 
-        // select 'New' then 'Add Item...'. Now find the 'Space Engineers'
-        // category under 'Visual C# Items' on the left hand side, and select
-        // 'Utility Class' in the main area. Name it in the box below, and
-        // press OK. This utility class will be merged in with your code when
-        // deploying your final script.
-        //
-        // You can also simply create a new utility class manually, you don't
-        // have to use the template if you don't want to. Just do so the first
-        // time to see what a utility class looks like.
-        // 
-        // Go to:
-        // https://github.com/malware-dev/MDK-SE/wiki/Quick-Introduction-to-Space-Engineers-Ingame-Scripts
-        //
-        // to learn more about ingame scripts.
-
-
-
-
-
+        
         IMyDoor innerDoor;
         IMyDoor outerDoor;
         IMyAirVent airVent;
+
+        private IMyDoor lastDoorOpened;
 
         bool innerDoorClosing = false;
         bool outerDoorClosing = false;
@@ -59,7 +37,7 @@ namespace IngameScript
         public Program()
         {
             Runtime.UpdateFrequency = UpdateFrequency.Update1;
-            var airlockGroup = GridTerminalSystem.GetBlockGroupWithName("Station Airlock");
+            var airlockGroup = GridTerminalSystem.GetBlockGroupWithName("Upper air lock 2(Station)");
             if (airlockGroup != null)
             {
                 List<IMyTerminalBlock> airlockBlocks = new List<IMyTerminalBlock>();
@@ -109,8 +87,8 @@ namespace IngameScript
             {
                 if (innerDoor.Status == DoorStatus.Closed && outerDoor.Status == DoorStatus.Closed)
                 {
-                    innerDoor.Enabled = true;
-                    outerDoor.Enabled = true;
+                    //innerDoor.Enabled = true;
+                    //outerDoor.Enabled = true;
                     display.WriteText("Airlock Ready", false);
                 }
                 else if (innerDoor.Status == DoorStatus.Open && outerDoor.Status == DoorStatus.Closed)
@@ -156,9 +134,9 @@ namespace IngameScript
             if (innerDoor != null && outerDoor != null && airVent != null)
             {
                 // Check if inner door is open and outer door is closed
-                if (innerDoor.Status == DoorStatus.Open && outerDoor.Status == DoorStatus.Closed)
+                if (innerDoor.Status == DoorStatus.Open && outerDoor.Status == DoorStatus.Closed && lastDoorOpened != innerDoor)
                 {
-                    airVent.Depressurize = false;
+                    lastDoorOpened = innerDoor;
                     // lock outer door
                     outerDoor.Enabled = false;
                     // Check if airvent can pressurize
@@ -176,18 +154,21 @@ namespace IngameScript
                         }
                         else if (innerDoorClosing && innerDoorCloseDelay == 0)
                         {
-                            outerDoor.Enabled = true;  // enable outer door after it closes
+
                             surface.WriteText("", false);
-                            airVent.Depressurize = true;
+                            
                             innerDoorClosing = false;
                             innerDoor.CloseDoor();
+                            airVent.Depressurize = true;
                         }
+
                     }
                 }
                 // Check if inner door is closed and outer door is open
-                else if (innerDoor.Status == DoorStatus.Closed && outerDoor.Status == DoorStatus.Open)
+                else if (innerDoor.Status == DoorStatus.Closed && outerDoor.Status == DoorStatus.Open && lastDoorOpened != outerDoor)
                 {
-                    airVent.Depressurize = true;
+                    lastDoorOpened = outerDoor;
+                    
                     // lock inner door
                     innerDoor.Enabled = false;
                     if (!outerDoorClosing)
@@ -201,10 +182,42 @@ namespace IngameScript
                     }
                     else if (outerDoorClosing && outerDoorCloseDelay == 0)
                     {
-                        airVent.Depressurize = false;
                         innerDoor.Enabled = true;  // enable inner door after outer door opens
                         outerDoorClosing = false;
+                        
                         outerDoor.CloseDoor();
+                        airVent.Depressurize = true;
+                    }
+                }
+                if (lastDoorOpened == innerDoor && innerDoor.Status == DoorStatus.Closed)
+                {
+                    
+                    
+                    // check is airvent is pressurized
+                    if (airVent.GetOxygenLevel() < 0.1f)
+                    {
+                        // open outer door
+                        outerDoor.Enabled = true;
+                        
+                    }
+                    else
+                    {
+                        outerDoor.Enabled = false;
+                    }
+                }else if (lastDoorOpened == outerDoor && outerDoor.Status == DoorStatus.Closed)
+                {
+                   
+                    
+                    // check if airvent is depressurized
+                    if (airVent.GetOxygenLevel() > .75f)
+                    {
+                        // open inner door
+                        innerDoor.Enabled = false;
+                        
+                    }
+                    else
+                    {
+                        innerDoor.Enabled = false;
                     }
                 }
             }
