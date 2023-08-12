@@ -34,16 +34,18 @@ namespace IngameScript
             InnerDoorClosing,
             OuterDoorOpening,
             OuterDoorClosing,
-       
+            Pressurizing,
+            Depressurizing
+
         }
 
         private AirlockState airlockState;
 
 
-        int innerDoorsCloseDelay = 50;
-        int outerDoorsCloseDelay = 50;
-        int outerDoorsOpenDelay = 60;
-        private int innerDoorsOpenDelay = 60;
+        int innerDoorsCloseDelay = 100;
+        int outerDoorsCloseDelay = 100;
+        int outerDoorsOpenDelay = 120;
+        private int innerDoorsOpenDelay = 120;
 
         bool innerDoorOpened;
         bool outerDoorOpened;
@@ -77,7 +79,7 @@ namespace IngameScript
 
             if (!innerDoorOpened && !outerDoorOpened)
             {
-                Me.GetSurface(0).WriteText("Airlock Ready");
+
                 foreach (var door in innerDoors)
                     door.Enabled = true;
 
@@ -86,143 +88,179 @@ namespace IngameScript
 
             }
 
-            
-            ManageInner();
-            ManageOuter();
+            switch (airlockState)
+            {
+                default:
+                    ManageAirlock();
+                    break;
+                case AirlockState.Pressurizing:
+                    LockDoors();
+                    airVent.Depressurize = false;
+                    if (airVent.GetOxygenLevel() >= .9f)
+                    {
+                        UnlockDoors();
+                        OpenInnerDoors();
+                        airlockState = AirlockState.Ready;
+                    }
+                    break;
+                case AirlockState.InnerDoorOpening:
+                    if (innerDoorOpened)
+                    {
+                        CloseInnerDoors();
+                        airlockState = AirlockState.Depressurizing;
+                        outerDoorsOpenDelay = 0; //set outerDoorOpenDelay to 0 
+                        // so that the second time around it opens immediately
+                        // also added a check to  open the door only when the inner 
+                        // door is completely closed                   
+                    }
+                    else
+                    {
+                        outerDoorsOpenDelay = outerDoorsOpenDelay > 0 ? outerDoorsOpenDelay - 1 : outerDoorsOpenDelay; // handle delay
+                        if (outerDoorsOpenDelay == 0)
+                        {
+                            OpenOuterDoors();
+                        }
 
+                    }
 
+                    break;
+                case AirlockState.Depressurizing:
+                    LockDoors();
+                    airVent.Depressurize = true;
+                    if (airVent.GetOxygenLevel() <= .1f)
+                    {
+                        UnlockDoors();
+                        OpenOuterDoors();
+                        airlockState = AirlockState.Ready;
+                    }
 
-
+                    break;
+            }
 
         }
 
-        public void ManageInner()
+        public void ManageAirlock()
         {
-            if (innerDoorOpened && !outerDoorOpened)
+            if (outerDoorOpened)
             {
-                lastDoorOpened = "Inner";
-                airlockState = AirlockState.InnerDoorOpening;
-                if (innerDoorsCloseDelay > 0)
+                CloseOuterDoors();
+                airVent.Depressurize = false;
+
+                if (airVent.GetOxygenLevel() >= .9f)
                 {
-                    innerDoorsCloseDelay--;
+                    airlockState = AirlockState.InnerDoorOpening;
                 }
-                else
+            }
+            else if (innerDoorOpened)
+            {
+                CloseInnerDoors();
+                airVent.Depressurize = true;
+
+                if (airVent.GetOxygenLevel() <= .1f)
                 {
-                    foreach (var door in innerDoors)
-                    {
-                        door.CloseDoor();
-                    }
+                    airlockState = AirlockState.OuterDoorOpening;
+                }
+            }
+        }
 
-                    airlockState = AirlockState.InnerDoorClosing;
-                    innerDoorsCloseDelay = 50;
-                    int i = 0;
+        public void LockDoors()
+        {
+            foreach (var door in innerDoors)
+            {
+                door.Enabled = false;
+            }
 
+            foreach (var door in outerDoors)
+            {
+                door.Enabled = false;
+            }
+        }
 
+        public void UnlockDoors()
+        {
+            foreach (var door in innerDoors)
+            {
+                door.Enabled = true;
+            }
+
+            foreach (var door in outerDoors)
+            {
+                door.Enabled = true;
+            }
+        }
+
+        public void OpenOuterDoors()
+        {
+            bool innerClosed = innerDoors.All(door => door.Status == DoorStatus.Closed);
+            if (innerClosed && outerDoorsOpenDelay == 0)
+            {
+
+                foreach (var door in outerDoors)
+                {
+                    door.OpenDoor();
+                    break; // we only need to open one door
                 }
             }
 
-            if (lastDoorOpened == "Inner" && airlockState == AirlockState.InnerDoorClosing && !innerDoorOpened)
-            {
-                if (outerDoorsOpenDelay > 0)
-                {
-                    outerDoorsOpenDelay--;
-                }
-                else
-                {
-                    if (outerDoorsOpenDelay == 0)
-                    {
+        }
 
-                        foreach (var door in outerDoors)
-                        {
-                            door.OpenDoor();
-                            outerDoorsOpenDelay--;
-                            airlockState = AirlockState.OuterDoorOpening;
-                        }
-                    }
-                }
-            }
-
-            if (outerDoorsCloseDelay > 0 && outerDoorOpened && airlockState == AirlockState.OuterDoorOpening)
+        public void CloseOuterDoors()
+        {
+            if (outerDoorsCloseDelay > 0)
             {
                 outerDoorsCloseDelay--;
             }
-            else if (outerDoorsCloseDelay == 0 && outerDoorOpened)
+            else
             {
-                airlockState = AirlockState.OuterDoorClosing;
                 foreach (var door in outerDoors)
                 {
                     door.CloseDoor();
                 }
-                outerDoorsCloseDelay = 50;
-                outerDoorsOpenDelay = 60;
-                airlockState = AirlockState.Ready;
+
+
+                outerDoorsCloseDelay = 100;
+
             }
         }
 
-
-
-        public void ManageOuter()
+        public void OpenInnerDoors()
         {
-            if (outerDoorOpened && !innerDoorOpened)
+            if (innerDoorsOpenDelay > 0)
             {
-                lastDoorOpened = "Outer";
-                airlockState = AirlockState.OuterDoorOpening;
-                if (outerDoorsCloseDelay > 0)
-                {
-                    outerDoorsCloseDelay--;
-                }
-                else
-                {
-                    foreach (var door in outerDoors)
-                    {
-                        door.CloseDoor();
-                    }
-
-                    airlockState = AirlockState.OuterDoorClosing;
-                    outerDoorsCloseDelay = 50;
-
-                }
+                innerDoorsOpenDelay--;
             }
-
-            if (lastDoorOpened == "Outer" && airlockState == AirlockState.OuterDoorClosing && !outerDoorOpened)
+            else
             {
-                if (innerDoorsOpenDelay > 0)
+                if (innerDoorsOpenDelay == 0)
                 {
-                    innerDoorsOpenDelay--;
-                }
-                else
-                {
-                    if (innerDoorsOpenDelay == 0)
-                    {
 
-                        foreach (var door in innerDoors)
-                        {
-                            door.OpenDoor();
-                            innerDoorsOpenDelay--;
-                            airlockState = AirlockState.InnerDoorOpening;
-                        }
+                    foreach (var door in innerDoors)
+                    {
+                        door.OpenDoor();
+                        innerDoorsOpenDelay--;
+
                     }
                 }
             }
+        }
 
-            if (innerDoorsCloseDelay > 0 && innerDoorOpened && airlockState == AirlockState.InnerDoorOpening)
+        public void CloseInnerDoors()
+        {
+            if (innerDoorsCloseDelay > 0)
             {
                 innerDoorsCloseDelay--;
             }
-            else if (innerDoorsCloseDelay == 0 && innerDoorOpened)
+            else
             {
-                airlockState = AirlockState.InnerDoorClosing;
                 foreach (var door in innerDoors)
                 {
                     door.CloseDoor();
                 }
-                innerDoorsCloseDelay = 50;
-                innerDoorsOpenDelay = 60;
-                airlockState = AirlockState.Ready;
+
+                innerDoorsCloseDelay = 100;
+
             }
         }
-
-
 
     }
 }
