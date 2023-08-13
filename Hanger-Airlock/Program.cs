@@ -42,16 +42,16 @@ namespace IngameScript
         private AirlockState airlockState;
 
 
-        int innerDoorsCloseDelay = 50;
-        int outerDoorsCloseDelay = 50;
-        int outerDoorsOpenDelay = 60;
-        private int innerDoorsOpenDelay = 60;
+        int innerDoorsCloseDelay = 100;
+        int outerDoorsCloseDelay = 100;
+        int outerDoorsOpenDelay = 120;
+        private int innerDoorsOpenDelay = 120;
 
         bool innerDoorOpened;
         bool outerDoorOpened;
         private bool innerDoorClosed;
         bool outerDoorClosed;
-       
+        private string lastDoorOpened = "";
 
         public Program()
         {
@@ -74,13 +74,16 @@ namespace IngameScript
 
         public void Main(string argument, UpdateType updateSource)
         {
-            Me.GetSurface(0).WriteText("Airlock State: " + airlockState.ToString() + "\n");
+            Me.GetSurface(0).WriteText("Airlock State:\n" + airlockState.ToString() + "\n" + $"{outerDoorsCloseDelay}");
 
             innerDoorOpened = innerDoors.Any(door => door.Status == DoorStatus.Open);
             outerDoorOpened = outerDoors.Any(door => door.Status == DoorStatus.Open);
             innerDoorClosed = innerDoors.Any(door => door.Status == DoorStatus.Closed);
             outerDoorClosed = outerDoors.Any(door => door.Status == DoorStatus.Closed);
-
+            if (argument != null)
+            {
+                lastDoorOpened = argument;
+            }
 
             if (!innerDoorOpened && !outerDoorOpened)
             {
@@ -95,20 +98,12 @@ namespace IngameScript
 
             switch (airlockState)
             {
-                default:
+                case AirlockState.Ready:
                     ManageAirlock();
                     break;
-                case AirlockState.Pressurizing:
 
-                    airVent.Depressurize = false;
-                    if (airVent.GetOxygenLevel() >= .9f)
-                    {
-                        OpenInnerDoors();
-                        airlockState = AirlockState.Ready;
-                    }
-                    break;
                 case AirlockState.InnerDoorOpening:
-                    if (innerDoorOpened)
+                    if (!innerDoorClosed)
                     {
                         if (innerDoorsCloseDelay > 0)
                         {
@@ -117,7 +112,7 @@ namespace IngameScript
                         else
                         {
                             CloseInnerDoors();
-                            innerDoorsCloseDelay = 50;
+                            innerDoorsCloseDelay = 100;
                             airlockState = AirlockState.Depressurizing;
                         }
                     }
@@ -129,12 +124,66 @@ namespace IngameScript
                         }
                         else if (innerDoorClosed)
                         {
-                            OpenOuterDoors();
-                            outerDoorsOpenDelay = 60;
+                            outerDoorsOpenDelay = 120;
+                            airlockState = AirlockState.Ready;
+
+                        }
+                    }
+
+                    break;
+                case AirlockState.OuterDoorOpening:
+                    if (!outerDoorClosed)
+                    {
+                        if (outerDoorsCloseDelay > 0)
+                        {
+                            outerDoorsCloseDelay--;
+                        }
+                        else
+                        {
+                            CloseOuterDoors();
+                            outerDoorsCloseDelay = 100;
+                            airlockState = AirlockState.Pressurizing;
+                        }
+                    }
+                    else
+                    {
+                        if (innerDoorsOpenDelay > 0 && outerDoorClosed)
+                        {
+                            innerDoorsOpenDelay--;
+                        }
+                        else if (outerDoorClosed)
+                        {
+                            innerDoorsOpenDelay = 120;
                             airlockState = AirlockState.Ready;
                         }
                     }
 
+                    break;
+                case AirlockState.InnerDoorClosing:
+
+                    if (innerDoorsCloseDelay > 0)
+                    {
+                        innerDoorsCloseDelay--;
+                    }
+                    else
+                    {
+                        CloseInnerDoors();
+                        innerDoorsCloseDelay = 100;
+                        airlockState = AirlockState.Ready;
+                    }
+
+                    break;
+                case AirlockState.OuterDoorClosing:
+                    if (outerDoorsCloseDelay > 0)
+                    {
+                        outerDoorsCloseDelay--;
+                    }
+                    else
+                    {
+                        CloseOuterDoors();
+                        outerDoorsCloseDelay = 100;
+                        airlockState = AirlockState.Ready;
+                    }
                     break;
                 case AirlockState.Depressurizing:
 
@@ -147,13 +196,27 @@ namespace IngameScript
                         }
                         else
                         {
-                           OpenOuterDoors();
-                           airlockState = AirlockState.Ready;
-                           outerDoorsOpenDelay = 50;
+                            OpenOuterDoors();
+                            airlockState = AirlockState.OuterDoorClosing;
+                            outerDoorsOpenDelay = 100;
                         }
-
                     }
-
+                    break;
+                case AirlockState.Pressurizing:
+                    airVent.Depressurize = false;
+                    if (airVent.GetOxygenLevel() >= .9f)
+                    {
+                        if (innerDoorsOpenDelay > 0)
+                        {
+                            innerDoorsOpenDelay--;
+                        }
+                        else
+                        {
+                            OpenInnerDoors();
+                            airlockState = AirlockState.InnerDoorClosing;
+                            innerDoorsOpenDelay = 100;
+                        }
+                    }
                     break;
             }
 
@@ -161,14 +224,21 @@ namespace IngameScript
 
         public void ManageAirlock()
         {
-            if (outerDoorOpened)
+            if (lastDoorOpened == "outer")
             {
-                CloseOuterDoors();
+                OpenOuterDoors();
+                airlockState = AirlockState.OuterDoorOpening;
             }
-            else if (innerDoorOpened)
+            else if (lastDoorOpened == "inner")
             {
-             
+                OpenInnerDoors();
                 airlockState = AirlockState.InnerDoorOpening;
+            }
+            else
+            {
+                airlockState = AirlockState.Ready;
+
+
             }
         }
 
@@ -223,29 +293,16 @@ namespace IngameScript
                 }
 
 
-                outerDoorsCloseDelay = 50;
+                outerDoorsCloseDelay = 100;
 
             }
         }
 
         public void OpenInnerDoors()
         {
-            if (innerDoorsOpenDelay > 0)
+            foreach (var door in innerDoors)
             {
-                innerDoorsOpenDelay--;
-            }
-            else
-            {
-                if (innerDoorsOpenDelay == 0)
-                {
-
-                    foreach (var door in innerDoors)
-                    {
-                        door.OpenDoor();
-                        innerDoorsOpenDelay--;
-
-                    }
-                }
+                door.OpenDoor();
             }
         }
 
