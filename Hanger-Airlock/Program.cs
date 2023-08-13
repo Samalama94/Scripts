@@ -51,7 +51,7 @@ namespace IngameScript
         bool outerDoorOpened;
         private bool innerDoorClosed;
         bool outerDoorClosed;
-        string lastDoorOpened;
+       
 
         public Program()
         {
@@ -117,12 +117,9 @@ namespace IngameScript
                         else
                         {
                             CloseInnerDoors();
-
                             innerDoorsCloseDelay = 50;
                             airlockState = AirlockState.Depressurizing;
                         }
-                        
-
                     }
                     else
                     {
@@ -136,7 +133,6 @@ namespace IngameScript
                             outerDoorsOpenDelay = 60;
                             airlockState = AirlockState.Ready;
                         }
-
                     }
 
                     break;
@@ -154,11 +150,8 @@ namespace IngameScript
                            OpenOuterDoors();
                            airlockState = AirlockState.Ready;
                            outerDoorsOpenDelay = 50;
-                           lastDoorOpened = "";
-
                         }
-                        
-                       
+
                     }
 
                     break;
@@ -174,7 +167,7 @@ namespace IngameScript
             }
             else if (innerDoorOpened)
             {
-                lastDoorOpened = "Inner";
+             
                 airlockState = AirlockState.InnerDoorOpening;
             }
         }
