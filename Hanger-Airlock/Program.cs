@@ -132,16 +132,21 @@ namespace IngameScript
 
                     break;
                 case AirlockState.OuterDoorOpening:
+                    if (airVent.GetOxygenLevel() > .1f)
+                    {
+                        airVent.Depressurize = true;
+                        return;
+                    }
+                    else
+                    {
+                        OpenOuterDoors();
+                    }
                     if (!outerDoorClosed)
                     {
-                        if (airVent.GetOxygenLevel() > .1f)
-                        {
-                            airVent.Depressurize = true;
-                        }
 
-                        else if (outerDoorsCloseDelay > 0)
+
+                        if (outerDoorsCloseDelay > 0)
                         {
-                            OpenOuterDoors();
                             outerDoorsCloseDelay--;
                         }
                         else
