@@ -6,6 +6,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.ComponentModel.Design;
 using System.Linq;
 using System.Text;
 using VRage;
@@ -26,7 +27,13 @@ namespace IngameScript
         List<IMyDoor> innerDoors;
         List<IMyDoor> outerDoors;
         List<IMyAirVent> airVents;
+        List<IMyTextPanel> lcds;
         IMyAirVent airVent;
+
+
+        IMyAirVent airlockVent;
+        IMyDoor airlockOuterDoor;
+        IMyDoor airlockInnerDoor;
 
         enum AirlockState
         {
@@ -48,6 +55,8 @@ namespace IngameScript
         int outerDoorsOpenDelay = 120;
         private int innerDoorsOpenDelay = 120;
 
+        int innerAirlockInnerDoorCloseDelay = 25;
+
         bool innerDoorOpened;
         bool outerDoorOpened;
         private bool innerDoorClosed;
@@ -60,13 +69,18 @@ namespace IngameScript
             innerDoors = new List<IMyDoor>();
             outerDoors = new List<IMyDoor>();
             airVents = new List<IMyAirVent>();
-
+            lcds = new List<IMyTextPanel>();
             airVent = GridTerminalSystem.GetBlockWithName("Hanger Airlock Airvent") as IMyAirVent;
 
+
+            airlockVent = GridTerminalSystem.GetBlockWithName("Hanger Tiny Airlock Airvent") as IMyAirVent;
+            airlockOuterDoor = GridTerminalSystem.GetBlockWithName("Hanger Tiny Airlock Outer Door") as IMyDoor;
+            airlockInnerDoor = GridTerminalSystem.GetBlockWithName("Hanger Tiny Airlock Inner Door") as IMyDoor;
 
             var innerGroup = GridTerminalSystem.GetBlockGroupWithName("Inner Hangar air lock door");
             var outerGroup = GridTerminalSystem.GetBlockGroupWithName("Outer Hangar airlock Door");
             var airVentGroup = GridTerminalSystem.GetBlockGroupWithName("Hanger Airlock Airvents");
+            var lcdGroup = GridTerminalSystem.GetBlockGroupWithName("Hangar LCD Screen");
 
             if (innerGroup != null)
                 innerGroup.GetBlocksOfType<IMyDoor>(innerDoors);
@@ -76,12 +90,61 @@ namespace IngameScript
 
             if (airVentGroup != null)
                 airVentGroup.GetBlocksOfType<IMyAirVent>(airVents);
+
+            if (lcdGroup != null)
+            {
+                lcdGroup.GetBlocksOfType<IMyTextPanel>(lcds);
+            }
+
+            foreach (var lcd in lcds)
+            {
+                lcd.ContentType = ContentType.TEXT_AND_IMAGE;
+                lcd.FontSize = 3f;
+            }
         }
 
         public void Main(string argument, UpdateType updateSource)
         {
-            Me.GetSurface(0).WriteText("Airlock State:\n" + airlockState.ToString() + "\n" + $"{airVent.GetOxygenLevel() * 100}");
+            if (airlockInnerDoor.Status == DoorStatus.Open)
+            {
+                if (innerAirlockInnerDoorCloseDelay > 0)
+                {
+                    innerAirlockInnerDoorCloseDelay--;
+                }
+                else
+                {
+                    airlockInnerDoor.CloseDoor();
+                    innerAirlockInnerDoorCloseDelay = 25;
+                }
+            }
 
+
+            if (airlockOuterDoor != null && airlockVent != null)
+            {
+                if (airlockVent.GetOxygenLevel() < 0.01f)
+                {
+                    airlockOuterDoor.Enabled = true;
+                    if (airlockOuterDoor.Status == DoorStatus.Open)
+                    {
+                        airlockInnerDoor.Enabled = false;
+                    }
+                    else
+                    {
+                        airlockInnerDoor.Enabled = true;
+                    }
+                }
+                else
+                {
+                    airlockOuterDoor.Enabled = false;
+                }
+            }
+
+
+            Me.GetSurface(0).WriteText("Airlock State:\n" + airlockState.ToString() + "\n" + $"{airVent.GetOxygenLevel() * 100}");
+            foreach (var lcd in lcds)
+            {
+                lcd.WriteText("Airlock State:\n" + airlockState.ToString() + "\n" + $"Air Pressure\nInside:\n{Math.Round(airVent.GetOxygenLevel() * 100)}%");
+            }
             innerDoorOpened = innerDoors.Any(door => door.Status == DoorStatus.Open);
             outerDoorOpened = outerDoors.Any(door => door.Status == DoorStatus.Open);
             innerDoorClosed = innerDoors.Any(door => door.Status == DoorStatus.Closed);
@@ -135,10 +198,10 @@ namespace IngameScript
 
                         }
                     }
-
                     break;
+
                 case AirlockState.OuterDoorOpening:
-                    if (airVent.GetOxygenLevel() > .1f)
+                    if (airVent.GetOxygenLevel() > .01f)
                     {
                         Depressurize();
                         return;
@@ -174,10 +237,9 @@ namespace IngameScript
                             airlockState = AirlockState.Ready;
                         }
                     }
-
                     break;
-                case AirlockState.InnerDoorClosing:
 
+                case AirlockState.InnerDoorClosing:
                     if (innerDoorsCloseDelay > 0)
                     {
                         innerDoorsCloseDelay--;
@@ -188,7 +250,6 @@ namespace IngameScript
                         innerDoorsCloseDelay = 100;
                         airlockState = AirlockState.Ready;
                     }
-
                     break;
                 case AirlockState.OuterDoorClosing:
                     if (outerDoorsCloseDelay > 0)
@@ -202,6 +263,7 @@ namespace IngameScript
                         airlockState = AirlockState.Ready;
                     }
                     break;
+
                 case AirlockState.Depressurizing:
 
                     Depressurize();
@@ -212,6 +274,7 @@ namespace IngameScript
                         airlockState = AirlockState.OuterDoorClosing;
                     }
                     break;
+
                 case AirlockState.Pressurizing:
                     Pressurize();
                     if (airVent.GetOxygenLevel() >= .9f)
@@ -223,7 +286,6 @@ namespace IngameScript
                     }
                     break;
             }
-
         }
 
         public void ManageAirlock()
@@ -232,7 +294,6 @@ namespace IngameScript
             {
                 airlockState = AirlockState.OuterDoorOpening;
             }
-
             else if (lastDoorOpened == "inner")
             {
                 OpenInnerDoors();
@@ -241,8 +302,6 @@ namespace IngameScript
             else
             {
                 airlockState = AirlockState.Ready;
-
-
             }
         }
 
@@ -327,5 +386,14 @@ namespace IngameScript
                 airVent.Depressurize = false;
             }
         }
+
+        public void DisplayAirLevelOnLcd()
+        {
+            foreach (var lcd in lcds)
+            {
+                lcd.WriteText("Airlock State:\n" + airlockState.ToString() + "\n" + $"{airVent.GetOxygenLevel() * 100}");
+            }
+        }
+
     }
 }
