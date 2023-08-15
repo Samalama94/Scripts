@@ -72,7 +72,6 @@ namespace IngameScript
             lcds = new List<IMyTextPanel>();
             airVent = GridTerminalSystem.GetBlockWithName("Hanger Airlock Airvent") as IMyAirVent;
 
-
             airlockVent = GridTerminalSystem.GetBlockWithName("Hanger Tiny Airlock Airvent") as IMyAirVent;
             airlockOuterDoor = GridTerminalSystem.GetBlockWithName("Hanger Tiny Airlock Outer Door") as IMyDoor;
             airlockInnerDoor = GridTerminalSystem.GetBlockWithName("Hanger Tiny Airlock Inner Door") as IMyDoor;
@@ -118,7 +117,6 @@ namespace IngameScript
                 }
             }
 
-
             if (airlockOuterDoor != null && airlockVent != null)
             {
                 if (airlockVent.GetOxygenLevel() < 0.01f)
@@ -138,7 +136,6 @@ namespace IngameScript
                     airlockOuterDoor.Enabled = false;
                 }
             }
-
 
             Me.GetSurface(0).WriteText("Airlock State:\n" + airlockState.ToString() + "\n" + $"{airVent.GetOxygenLevel() * 100}");
             foreach (var lcd in lcds)

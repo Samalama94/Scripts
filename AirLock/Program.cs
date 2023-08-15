@@ -1,6 +1,7 @@
 ﻿using Sandbox.Game.EntityComponents;
 using Sandbox.ModAPI.Ingame;
 using Sandbox.ModAPI.Interfaces;
+using SpaceEngineers.Game.Entities.Blocks;
 using SpaceEngineers.Game.ModAPI.Ingame;
 using System;
 using System.Collections;
@@ -22,22 +23,19 @@ namespace IngameScript
 {
     partial class Program : MyGridProgram
     {
-        
-        IMyDoor innerDoor;
-        IMyDoor outerDoor;
-        IMyAirVent airVent;
 
-        private IMyDoor lastDoorOpened;
 
-        bool innerDoorClosing = false;
-        bool outerDoorClosing = false;
-        int innerDoorCloseDelay = 25; // 2.5 seconds
-        int outerDoorCloseDelay = 25; // 2.5 seconds
+        IMyAirVent airlockVent;
+        IMyDoor airlockOuterDoor;
+        IMyDoor airlockInnerDoor;
 
+        private int innerAirlockInnerDoorCloseDelay = 50;
+        private int outerAirlockInnerDoorCloseDelay = 50;
         public Program()
         {
-            Runtime.UpdateFrequency = UpdateFrequency.Update1;
-            var airlockGroup = GridTerminalSystem.GetBlockGroupWithName("Upper air lock 2(Station)");
+            // Run every 100 ticks (60 ticks is 1 second)
+            Runtime.UpdateFrequency = UpdateFrequency.Update10;
+            var airlockGroup = GridTerminalSystem.GetBlockGroupWithName("Station Main Airlock");
             if (airlockGroup != null)
             {
                 List<IMyTerminalBlock> airlockBlocks = new List<IMyTerminalBlock>();
@@ -48,181 +46,81 @@ namespace IngameScript
                     {
                         if (block.CustomName.Contains("Inner"))
                         {
-                            innerDoor = block as IMyDoor;
+                            airlockInnerDoor = block as IMyDoor;
                         }
                         else if (block.CustomName.Contains("Outer"))
                         {
-                            outerDoor = block as IMyDoor;
+                            airlockOuterDoor = block as IMyDoor;
                         }
                     }
                     else if (block is IMyAirVent)
                     {
-                        airVent = block as IMyAirVent;
+                        airlockVent = block as IMyAirVent;
                     }
                 }
+
             }
         }
 
         public void Main(string argument, UpdateType updateSource)
         {
-            IMyTextSurface display = null;
-            List<IMyTextSurfaceProvider> providers = new List<IMyTextSurfaceProvider>();
-            GridTerminalSystem.GetBlocksOfType<IMyTextSurfaceProvider>(providers);
-            foreach (IMyTextSurfaceProvider provider in providers)
+
+            if (airlockInnerDoor.Status == DoorStatus.Open)
             {
-                for (int i = 0; i < provider.SurfaceCount; i++)
+                if (innerAirlockInnerDoorCloseDelay > 0)
                 {
-                    IMyTextSurface screen = provider.GetSurface(i);
-                    if (!screen.DisplayName.Equals("Main Airlock Display")) continue;
-                    display = screen;
-                    break;
+                    innerAirlockInnerDoorCloseDelay--;
                 }
-                if (display != null)
+                else
                 {
-                    break;
+                    airlockInnerDoor.CloseDoor();
+                    innerAirlockInnerDoorCloseDelay = 25;
                 }
             }
 
-            if (display != null)
+            if (airlockOuterDoor.Status == DoorStatus.Open)
             {
-                if (innerDoor.Status == DoorStatus.Closed && outerDoor.Status == DoorStatus.Closed)
+                
+                if (outerAirlockInnerDoorCloseDelay > 0)
                 {
-                    //innerDoor.Enabled = true;
-                    //outerDoor.Enabled = true;
-                    display.WriteText("Airlock Ready", false);
+                    outerAirlockInnerDoorCloseDelay--;
                 }
-                else if (innerDoor.Status == DoorStatus.Open && outerDoor.Status == DoorStatus.Closed)
+                else
                 {
-                    display.WriteText("Airlock Depressurizing", false);
+                    airlockInnerDoor.CloseDoor();
+                    outerAirlockInnerDoorCloseDelay = 25;
                 }
-                else if (innerDoor.Status == DoorStatus.Closed && outerDoor.Status == DoorStatus.Open)
-                {
-                    display.WriteText("Airlock Pressurizing", false);
-                }
-                else if (innerDoor.Status == DoorStatus.Open && outerDoor.Status == DoorStatus.Open)
-                {
-                    display.WriteText("Airlock Error", false);
-                }
-               
             }
 
 
-            var surface = Me.GetSurface(0);
-            surface.FontSize = 1.5f;
-            if (innerDoor.Status == DoorStatus.Closed && outerDoor.Status == DoorStatus.Closed)
-            {
-                innerDoor.Enabled = true;
-                outerDoor.Enabled = true;
-                surface.WriteText("Airlock Ready", false);
-            }
-            else if (innerDoorClosing && innerDoorCloseDelay == 0)
-            {
-                surface.WriteText("Airlock Depressurizing", false);
-            }
-            else if (outerDoorClosing && outerDoorCloseDelay == 0)
-            {
-                surface.WriteText("Airlock Pressurizing", false);
-            }
-            else if (innerDoor.Status == DoorStatus.Open && outerDoor.Status == DoorStatus.Open)
-            {
-                surface.WriteText("Airlock Error", false);
-            }
-           
 
-
-            // Check if the doors and airvent are not null
-            if (innerDoor != null && outerDoor != null && airVent != null)
+            if (airlockOuterDoor != null && airlockVent != null)
             {
-                // Check if inner door is open and outer door is closed
-                if (innerDoor.Status == DoorStatus.Open && outerDoor.Status == DoorStatus.Closed && lastDoorOpened != innerDoor)
+                if (airlockVent.GetOxygenLevel() < 0.01f)
                 {
-                    lastDoorOpened = innerDoor;
-                    // lock outer door
-                    outerDoor.Enabled = false;
-                    // Check if airvent can pressurize
-                    if (airVent.CanPressurize)
+                    airlockOuterDoor.Enabled = true;
+                    if (airlockOuterDoor.Status == DoorStatus.Open)
                     {
-                        if (!innerDoorClosing)
-                        {
-                            innerDoorClosing = true;
-                            
-                            innerDoorCloseDelay = 25; // 2.5 seconds
-                        }
-                        else if (innerDoorClosing && innerDoorCloseDelay > 0)
-                        {
-                            innerDoorCloseDelay--;
-                        }
-                        else if (innerDoorClosing && innerDoorCloseDelay == 0)
-                        {
-
-                            surface.WriteText("", false);
-                            
-                            innerDoorClosing = false;
-                            innerDoor.CloseDoor();
-                            airVent.Depressurize = true;
-                        }
-
-                    }
-                }
-                // Check if inner door is closed and outer door is open
-                else if (innerDoor.Status == DoorStatus.Closed && outerDoor.Status == DoorStatus.Open && lastDoorOpened != outerDoor)
-                {
-                    lastDoorOpened = outerDoor;
-                    
-                    // lock inner door
-                    innerDoor.Enabled = false;
-                    if (!outerDoorClosing)
-                    {
-                        outerDoorClosing = true;
-                        outerDoorCloseDelay = 25; // 2.5 seconds
-                    }
-                    else if (outerDoorClosing && outerDoorCloseDelay > 0)
-                    {
-                        outerDoorCloseDelay--;
-                    }
-                    else if (outerDoorClosing && outerDoorCloseDelay == 0)
-                    {
-                        innerDoor.Enabled = true;  // enable inner door after outer door opens
-                        outerDoorClosing = false;
-                        
-                        outerDoor.CloseDoor();
-                        airVent.Depressurize = true;
-                    }
-                }
-                if (lastDoorOpened == innerDoor && innerDoor.Status == DoorStatus.Closed)
-                {
-                    
-                    
-                    // check is airvent is pressurized
-                    if (airVent.GetOxygenLevel() < 0.1f)
-                    {
-                        // open outer door
-                        outerDoor.Enabled = true;
-                        
+                        airlockInnerDoor.Enabled = false;
                     }
                     else
                     {
-                        outerDoor.Enabled = false;
-                    }
-                }else if (lastDoorOpened == outerDoor && outerDoor.Status == DoorStatus.Closed)
-                {
-                   
-                    
-                    // check if airvent is depressurized
-                    if (airVent.GetOxygenLevel() > .75f)
-                    {
-                        // open inner door
-                        innerDoor.Enabled = false;
-                        
-                    }
-                    else
-                    {
-                        innerDoor.Enabled = false;
+                        airlockInnerDoor.Enabled = true;
                     }
                 }
+                else
+                {
+                    airlockOuterDoor.Enabled = true;
+                }
             }
+
         }
+
+
     }
-    
+
+
 }
+
+
 
