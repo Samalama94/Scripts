@@ -119,7 +119,7 @@ namespace IngameScript
 
             if (airlockOuterDoor != null && airlockVent != null)
             {
-                if (airlockVent.GetOxygenLevel() < 0.01f)
+                if (airlockVent.GetOxygenLevel() < 0.01f) // TODO Add an || to see if the outer door is open
                 {
                     airlockOuterDoor.Enabled = true;
                     if (airlockOuterDoor.Status == DoorStatus.Open)
