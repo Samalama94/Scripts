@@ -45,6 +45,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Dock To Cargo", "Ship Items
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Hanger-Airlock", "Hanger-Airlock\Hanger-Airlock.csproj", "{5D1EE3F7-9261-467C-B85D-B130E1ECD1CE}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Ignition", "Ignition\Ignition.csproj", "{855ACF07-32DD-4AA1-8945-2BBB6BAC2796}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -70,6 +72,8 @@ Global
 		{F5D1C7CE-0636-4497-BC0A-37921209E736}.Debug|x64.Build.0 = Debug|x64
 		{5D1EE3F7-9261-467C-B85D-B130E1ECD1CE}.Debug|x64.ActiveCfg = Debug|x64
 		{5D1EE3F7-9261-467C-B85D-B130E1ECD1CE}.Debug|x64.Build.0 = Debug|x64
+		{855ACF07-32DD-4AA1-8945-2BBB6BAC2796}.Debug|x64.ActiveCfg = Debug|x64
+		{855ACF07-32DD-4AA1-8945-2BBB6BAC2796}.Debug|x64.Build.0 = Debug|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
